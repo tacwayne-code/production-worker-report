@@ -46,6 +46,12 @@ function esc(v) {
   })[c]);
 }
 
+function unitText(value) {
+  const unit = String(value || "").trim();
+  if (unit === "Units" || unit === "Unit" || unit.toLowerCase() === "units") return "台";
+  return unit;
+}
+
 // ====== 时钟 ======
 function setupClock() { tickClock(); setInterval(tickClock, 1000); }
 function tickClock() {
@@ -207,17 +213,35 @@ function renderOrders() {
   el.innerHTML = active.map((o) => {
     const rem = parseFloat(o.remaining) || 0;
     const qty = parseFloat(o.qty) || 0;
+    const uom = unitText(o.uom);
     const act = S.selOrder && S.selOrder.id === o.id ? " active" : "";
     const stCls = (o.status || "").indexOf("逾期") > -1 ? "danger" : "progress";
     const stText = (o.status || "").indexOf("逾期") > -1 ? "逾期" : "进行中";
+
     return '<div class="order-card' + act + '" data-oid="' + esc(o.id) + '">' +
+      // 客户代码 + 订单号 + 状态（对应看板"客户/订单"列）
       '<div class="oc-header">' +
+        '<span class="oc-customer-code">' + esc(o.customerCode ? "[" + o.customerCode + "]" : "") + '</span>' +
         '<span class="oc-id">' + esc(o.id) + '</span>' +
         '<span class="oc-status ' + stCls + '">' + stText + '</span>' +
       '</div>' +
-      '<div class="oc-customer">' + esc(o.customer || "") + '</div>' +
-      '<div class="oc-product">' + esc(o.product || "") + '</div>' +
-      '<div class="oc-qty-row"><span>剩余</span><strong>' + rem + '/' + qty + '台</strong></div>' +
+      // 机型 + 型号代码（对应看板"机型"列）
+      '<div class="oc-product">' +
+        '<strong>' + esc(o.product || "") + '</strong>' +
+        '<small>' + esc(o.code || "") + '</small>' +
+      '</div>' +
+      // 规格型号
+      '<div class="oc-spec"><span>' + esc(o.spec || "—") + '</span><small>规格型号</small></div>' +
+      // 数量 + 待交付（对应看板"数量"列）
+      '<div class="oc-qty-row">' +
+        '<span>' + esc(o.qty) + esc(uom) + '</span>' +
+        '<small>待交付 ' + esc(o.remaining) + esc(uom) + '</small>' +
+      '</div>' +
+      // 备注 + 交付情况
+      '<div class="oc-meta-row">' +
+        '<span class="oc-remark">' + esc(o.remark || "") + '</span>' +
+        '<span class="oc-delivery">' + esc(o.updated || o.date || "") + '</span>' +
+      '</div>' +
     '</div>';
   }).join("");
 }
