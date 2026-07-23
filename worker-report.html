@@ -2,112 +2,176 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <meta name="theme-color" content="#0c1117" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f0f4f8" />
   <title>生产人员报工</title>
   <link rel="stylesheet" href="./worker-report.css" />
 </head>
 <body>
 
-<div class="touch-shell" id="app">
-  <!-- 顶部状态栏 -->
-  <header class="touch-topbar">
-    <div class="top-left brand-block">
+<div class="shell">
+
+  <!-- 顶部栏 -->
+  <header class="topbar">
+    <div class="topbar-brand">
       <div class="brand-mark"><span></span><span></span><span></span></div>
       <div>
         <p class="eyebrow">PRODUCTION WORKER REPORTING</p>
         <h1>生产人员报工</h1>
       </div>
     </div>
-    <div class="top-center">
-      <span class="top-badge" id="apiStatus">● 在线</span>
-    </div>
-    <div class="top-right">
-      <a class="top-back-btn" href="./index.html" title="返回订单看板">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    <div class="topbar-right">
+      <span class="status-badge" id="apiStatus">● 在线</span>
+      <a class="btn-pill btn-primary" href="./index.html" title="返回订单看板">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         <span>返回看板</span>
       </a>
-      <div class="top-stat" id="topStats">今日 0台 / 0人</div>
-      <div class="top-clock" id="clock">14:30</div>
+      <div class="topbar-clock">
+        <strong id="clock">--:--:--</strong>
+        <span id="dateLabel">----年--月--日</span>
+      </div>
     </div>
   </header>
 
-  <!-- 主体区域 -->
-  <div class="touch-main">
-    <!-- 左侧：工人 & 工序 -->
-    <aside class="touch-sidebar">
-      <section class="touch-section">
-        <div class="section-label">选择工人</div>
-        <div class="worker-chips" id="workerChips"></div>
-      </section>
+  <!-- 主体：左右分栏 -->
+  <div class="main-grid">
 
-      <section class="touch-section">
-        <div class="section-label">选择工序</div>
-        <div class="operation-chips" id="operationChips">
-          <button class="chip op-chip" data-op="assembly">总装</button>
-          <button class="chip op-chip" data-op="testing">测试</button>
-          <button class="chip op-chip" data-op="qc">质检</button>
-          <button class="chip op-chip" data-op="packing">包装</button>
-          <button class="chip op-chip" data-op="debug">调试</button>
-        </div>
-      </section>
+    <!-- ========== 左侧：报工操作 ========== -->
+    <section class="left-panel">
 
-      <section class="touch-section">
-        <div class="section-label">备注（可选）</div>
-        <textarea class="touch-remark" id="remarkInput" placeholder="异常情况..." rows="2"></textarea>
-      </section>
-    </aside>
-
-    <!-- 中央：工单 + 数量 + 提交 -->
-    <div class="touch-center">
-      <!-- 工单卡片区 -->
-      <section class="touch-section flex-1">
-        <div class="section-label">选择工单 <span class="order-count" id="orderCount">0个</span></div>
-        <div class="order-cards" id="orderCards"></div>
-      </section>
-
-      <!-- 底部操作区 -->
-      <div class="touch-action-bar">
-        <!-- 数量控制 -->
-        <div class="qty-panel" id="qtyPanel">
-          <div class="qty-label">完成数量</div>
-          <div class="qty-controls">
-            <button class="qty-btn big-minus" id="qtyMinus">−</button>
-            <div class="qty-display" id="qtyDisplay">0</div>
-            <button class="qty-btn big-plus" id="qtyPlus">+</button>
+      <!-- 上：工人 + 工序 -->
+      <div class="left-top">
+        <div class="card">
+          <div class="card-header">
+            <h2>选择工人</h2>
+            <span class="badge-count" id="workerCount">0 人</span>
           </div>
-          <div class="qty-quick">
-            <button class="quick-btn">+5</button>
-            <button class="quick-btn">+10</button>
-            <button class="quick-btn">+20</button>
-            <button class="quick-btn">+50</button>
+          <div class="card-body">
+            <div class="chip-row" id="workerChips"></div>
           </div>
         </div>
 
-        <!-- 提交按钮 -->
-        <button class="submit-btn" id="submitBtn" disabled>
-          <span class="submit-icon">✅</span>
-          <span class="submit-text">提交报工</span>
-        </button>
+        <div class="card">
+          <div class="card-header">
+            <h2>选择工序</h2>
+          </div>
+          <div class="card-body">
+            <div class="op-row" id="operationChips">
+              <button class="chip op-chip" data-op="assembly">总装</button>
+              <button class="chip op-chip" data-op="testing">测试</button>
+              <button class="chip op-chip" data-op="qc">质检</button>
+              <button class="chip op-chip" data-op="packing">包装</button>
+              <button class="chip op-chip" data-op="debug">调试</button>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
 
-  <!-- 成功弹窗 -->
-  <div class="success-overlay" id="successOverlay">
-    <div class="success-box">
-      <div class="success-icon">✅</div>
-      <div class="success-msg" id="successMsg">报工成功！</div>
-      <div class="success-sub" id="successSub"></div>
-      <button class="success-ok" id="successOk">继续报工</button>
-    </div>
-  </div>
+      <!-- 中：工单卡片 -->
+      <div class="card flex-1">
+        <div class="card-header">
+          <h2>选择工单</h2>
+          <span class="badge-count" id="orderCount">0 个</span>
+        </div>
+        <div class="card-body scrollable">
+          <div class="order-grid" id="orderCards"></div>
+        </div>
+      </div>
 
-  <!-- Toast -->
-  <div class="touch-toast" id="toast"></div>
+      <!-- 下：备注 + 数量 + 提交 -->
+      <div class="left-bottom">
+        <div class="card">
+          <div class="card-header">
+            <h2>备注（可选）</h2>
+          </div>
+          <div class="card-body">
+            <textarea class="input-remark" id="remarkInput" placeholder="异常情况、特殊说明..." rows="2"></textarea>
+          </div>
+        </div>
+
+        <div class="qty-submit-row">
+          <div class="qty-card">
+            <span class="qty-label">完成数量</span>
+            <div class="qty-controls">
+              <button class="qty-btn" id="qtyMinus">−</button>
+              <div class="qty-display" id="qtyDisplay">0</div>
+              <button class="qty-btn" id="qtyPlus">+</button>
+            </div>
+            <div class="qty-quick">
+              <button class="quick-btn">+5</button>
+              <button class="quick-btn">+10</button>
+              <button class="quick-btn">+20</button>
+              <button class="quick-btn">+50</button>
+            </div>
+          </div>
+
+          <button class="submit-btn" id="submitBtn" disabled>
+            <span class="submit-icon">&#10003;</span>
+            <span class="submit-text">提交报工</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 右侧：数据概览 ========== -->
+    <aside class="right-panel">
+
+      <!-- 上：KPI 指标 -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <p class="section-kicker">KEY METRICS</p>
+            <h2>核心指标</h2>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="kpi-grid" id="kpiGrid"></div>
+        </div>
+      </div>
+
+      <!-- 中：今日报工统计 -->
+      <div class="card flex-1">
+        <div class="card-header">
+          <div>
+            <p class="section-kicker">TODAY REPORT</p>
+            <h2>今日报工</h2>
+          </div>
+          <span class="badge-count" id="todayStat">0 台 / 0 人</span>
+        </div>
+        <div class="card-body scrollable">
+          <div id="reportOverview"></div>
+        </div>
+      </div>
+
+      <!-- 下：在岗工人 + 工序分布 -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <p class="section-kicker">TEAM STATUS</p>
+            <h2>班次状态</h2>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="team-grid" id="teamGrid"></div>
+        </div>
+      </div>
+
+    </aside>
+  </div>
 </div>
+
+<!-- 成功弹窗 -->
+<div class="overlay" id="successOverlay">
+  <div class="dialog-box">
+    <div class="dialog-icon">&#10003;</div>
+    <div class="dialog-msg" id="successMsg">报工成功！</div>
+    <div class="dialog-sub" id="successSub"></div>
+    <button class="dialog-ok" id="successOk">继续报工</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
 
 <script src="./worker-report.js"></script>
 </body>

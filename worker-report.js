@@ -1,27 +1,37 @@
-/* === 触摸屏版报工逻辑 === */
+/* === 生产人员报工 · 统一布局逻辑 === */
+
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
 
 // ====== API ======
 const API_BASE = window.location.origin;
-let apiOk = false;
-let offline = false;
+let apiOnline = false;
 
-async function apiGet(p) {
-  const r = await fetch(API_BASE + p);
+async function apiGet(path) {
+  const r = await fetch(API_BASE + path);
   const j = await r.json();
   if (!j.ok) throw new Error(j.error || "API error");
   return j.data;
 }
-async function apiPost(p, b) {
-  const r = await fetch(API_BASE + p, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) });
+async function apiPost(path, body) {
+  const r = await fetch(API_BASE + path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
   const j = await r.json();
   if (!j.ok) throw new Error(j.error || "API error");
   return j.data;
 }
 
-// ====== 状态 ======
+// ====== 全局状态 ======
 const S = {
-  workers: [], orders: [], reports: [],
-  selWorker: null, selWorkerIdx: -1,
+  workers: [],
+  orders: [],
+  reports: [],
+  dashboard: null,
+  selWorkerIdx: -1,
+  selWorker: null,
   selOrder: null,
   selOperation: "",
   qty: 0,
@@ -30,38 +40,57 @@ const S = {
 
 const OP = { assembly: "总装", testing: "测试", qc: "质检", packing: "包装", debug: "调试" };
 
-// ====== DOM 快捷 ======
-const E = (s) => document.querySelector(s);
-const A = (s) => document.querySelectorAll(s);
-
-// ====== 初始化 ======
-async function init() {
-  try { await apiGet("/api/health"); apiOk = true; offline = false; }
-  catch { apiOk = false; offline = true; }
-  updateApiBadge();
-  await loadData();
-  render();
-  setupClock();
-  setupEvents();
+function esc(v) {
+  return String(v ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[c]);
 }
 
+// ====== 时钟 ======
+function setupClock() { tickClock(); setInterval(tickClock, 1000); }
+function tickClock() {
+  const now = new Date();
+  const clk = $("#clock");
+  const dLbl = $("#dateLabel");
+  if (clk) clk.textContent = now.toLocaleTimeString("zh-CN", { hour12: false });
+  if (dLbl) dLbl.textContent = now.toLocaleDateString("zh-CN", {
+    year: "numeric", month: "2-digit", day: "2-digit", weekday: "short",
+  });
+}
+
+// ====== API 状态 ======
 function updateApiBadge() {
-  const b = E("#apiStatus");
+  const b = $("#apiStatus");
   if (!b) return;
-  if (offline) { b.textContent = "● 离线"; b.className = "top-badge offline"; }
-  else { b.textContent = "● 在线"; b.className = "top-badge"; }
+  if (apiOnline) { b.textContent = "● 在线"; b.className = "status-badge"; }
+  else { b.textContent = "● 离线"; b.className = "status-badge offline"; }
 }
 
-async function loadData() {
+// ====== 数据加载 ======
+async function loadAll() {
+  try { const r = await fetch(API_BASE + "/api/dashboard", { cache: "no-store" }); const p = await r.json(); if (p.ok) S.dashboard = p.data; }
+  catch { S.dashboard = null; }
+
   try { S.workers = await apiGet("/api/workers"); }
   catch { S.workers = defaultWorkers(); }
+
   try { S.orders = await apiGet("/api/order-summary"); }
   catch { S.orders = []; }
+
   try { S.reports = await apiGet("/api/reports"); }
   catch {
     try { S.reports = JSON.parse(localStorage.getItem("wr_reports") || "[]"); }
     catch { S.reports = []; }
   }
+
+  apiOnline = true;
+  updateApiBadge();
+  renderKpis();
+  renderTeamStatus();
+  renderWorkers();
+  renderOrders();
+  renderReportOverview();
+  updateSubmit();
 }
 
 function defaultWorkers() {
@@ -75,79 +104,172 @@ function defaultWorkers() {
   ];
 }
 
-// ====== 时钟 ======
-function setupClock() { tick(); setInterval(tick, 1000); }
-function tick() {
-  const d = new Date();
-  const c = E("#clock"); if (c) c.textContent = d.toLocaleTimeString("zh-CN", { hour12: false });
+// ====== KPI ======
+function renderKpis() {
+  const grid = $("#kpiGrid");
+  if (!grid) return;
+
+  // 今日统计
+  const today = new Date().toISOString().split("T")[0];
+  const todayR = S.reports.filter((r) => r.date === today);
+  const todayQty = todayR.reduce((s, r) => s + (parseInt(r.qty) || 0), 0);
+  const todayPeople = new Set(todayR.map((r) => r.workerName)).size;
+  const activeOrders = S.orders.filter((o) => parseFloat(o.remaining) > 0).length;
+
+  const kpis = [
+    ["今日报工", String(todayR.length), "条", `已提交 ${todayQty}台`, "#10b981"],
+    ["今日产量", String(todayQty), "台", `在岗 ${todayPeople}人`, "#0ea5c9"],
+    ["待处理工单", String(activeOrders), "个", "今日新增", "#f59e0b"],
+    ["可报工人", String(S.workers.length), "人", `共 ${S.workers.length}人`, "#4f8cf7"],
+  ];
+
+  grid.innerHTML = kpis.map((k) => `
+    <div class="kpi-card" style="--accent:${esc(k[4])}">
+      <span class="kpi-label">${esc(k[0])}</span>
+      <div class="kpi-value">${esc(k[1])}<small>${esc(k[2])}</small></div>
+      <div class="kpi-trend">${esc(k[3])}</div>
+    </div>
+  `).join("");
 }
 
-// ====== 渲染 ======
-function render() {
-  renderWorkers();
-  renderOrders();
-  updateStats();
-  updateSubmit();
-}
+// ====== 班次状态 ======
+function renderTeamStatus() {
+  const grid = $("#teamGrid");
+  if (!grid) return;
 
-function renderWorkers() {
-  const el = E("#workerChips");
-  if (!el) return;
-  if (!S.workers.length) { el.innerHTML = '<div style="color:var(--muted);font-size:14px;padding:12px">暂无工人</div>'; return; }
-  el.innerHTML = S.workers.map((w, i) => {
-    const act = S.selWorkerIdx === i ? " active" : "";
-    return `<button class="chip${act}" data-wi="${i}">${esc(w.name)}${w.team ? " · " + esc(w.team) : ""}</button>`;
+  const teamMap = {};
+  S.workers.forEach((w) => {
+    const t = w.team || "其他";
+    if (!teamMap[t]) teamMap[t] = { name: t, total: 0, active: 0 };
+    teamMap[t].total++;
+  });
+
+  // 计算每个班次的今日报工人数
+  const today = new Date().toISOString().split("T")[0];
+  const todayR = S.reports.filter((r) => r.date === today);
+  todayR.forEach((r) => {
+    const w = S.workers.find((x) => x.name === r.workerName);
+    if (w && teamMap[w.team]) teamMap[w.team].active++;
+  });
+
+  const teams = Object.values(teamMap);
+  if (!teams.length) {
+    grid.innerHTML = '<div style="color:var(--muted);font-size:12px;text-align:center;padding:16px">暂无班次数据</div>';
+    return;
+  }
+
+  grid.innerHTML = teams.map((t) => {
+    const cls = t.name.includes("A") ? "A" :
+                t.name.includes("B") ? "B" :
+                t.name.includes("C") ? "C" :
+                t.name.includes("夜") ? "night" : "";
+    return '<div class="team-card ' + cls + '">' +
+      '<span class="team-name">' + esc(t.name) + '</span>' +
+      '<span class="team-count">' + t.active + '/' + t.total + '</span>' +
+      '<span class="team-sub">在岗 / 总数</span>' +
+    '</div>';
   }).join("");
 }
 
-function renderOrders() {
-  const el = E("#orderCards");
-  const cnt = E("#orderCount");
+// ====== 工人渲染 ======
+function renderWorkers() {
+  const el = $("#workerChips");
+  const cnt = $("#workerCount");
   if (!el) return;
-  const active = S.orders.filter(o => parseFloat(o.remaining) > 0);
-  if (cnt) cnt.textContent = active.length + "个";
+  if (cnt) cnt.textContent = S.workers.length + " 人";
 
-  if (!active.length) { el.innerHTML = '<div style="color:var(--muted);font-size:18px;text-align:center;padding:60px">暂无待处理工单</div>'; return; }
+  if (!S.workers.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px">暂无工人</div>';
+    return;
+  }
 
-  el.innerHTML = active.map(o => {
+  el.innerHTML = S.workers.map((w, i) => {
+    const act = S.selWorkerIdx === i ? " active" : "";
+    const label = w.name + (w.team ? " · " + w.team : "");
+    return '<button class="chip worker-chip' + act + '" data-wi="' + i + '">' + esc(label) + '</button>';
+  }).join("");
+}
+
+// ====== 工单渲染 ======
+function renderOrders() {
+  const el = $("#orderCards");
+  const cnt = $("#orderCount");
+  if (!el) return;
+
+  const active = S.orders.filter((o) => parseFloat(o.remaining) > 0);
+  if (cnt) cnt.textContent = active.length + " 个";
+
+  if (!active.length) {
+    el.innerHTML = '<div class="overview-empty">暂无待处理工单</div>';
+    return;
+  }
+
+  el.innerHTML = active.map((o) => {
     const rem = parseFloat(o.remaining) || 0;
     const qty = parseFloat(o.qty) || 0;
     const act = S.selOrder && S.selOrder.id === o.id ? " active" : "";
-    const stCls = (o.status || "").includes("逾期") ? "danger" : "progress";
-    const stText = (o.status || "").includes("逾期") ? "逾期" : "进行中";
-    return `<div class="order-card${act}" data-oid="${esc(o.id)}">
-      <div class="oc-header">
-        <span class="oc-id">${esc(o.id)}</span>
-        <span class="oc-status ${stCls}">${stText}</span>
-      </div>
-      <div class="oc-customer">${esc(o.customer || "")}</div>
-      <div class="oc-product">${esc(o.product || "")}</div>
-      <div class="oc-qty-row"><span>剩余</span><strong>${rem}/${qty}台</strong></div>
-    </div>`;
+    const stCls = (o.status || "").indexOf("逾期") > -1 ? "danger" : "progress";
+    const stText = (o.status || "").indexOf("逾期") > -1 ? "逾期" : "进行中";
+    return '<div class="order-card' + act + '" data-oid="' + esc(o.id) + '">' +
+      '<div class="oc-header">' +
+        '<span class="oc-id">' + esc(o.id) + '</span>' +
+        '<span class="oc-status ' + stCls + '">' + stText + '</span>' +
+      '</div>' +
+      '<div class="oc-customer">' + esc(o.customer || "") + '</div>' +
+      '<div class="oc-product">' + esc(o.product || "") + '</div>' +
+      '<div class="oc-qty-row"><span>剩余</span><strong>' + rem + '/' + qty + '台</strong></div>' +
+    '</div>';
   }).join("");
 }
 
-function updateStats() {
+// ====== 报工概览 ======
+function renderReportOverview() {
+  const el = $("#reportOverview");
+  const stat = $("#todayStat");
+  if (!el) return;
+
   const today = new Date().toISOString().split("T")[0];
-  const todayR = S.reports.filter(r => r.date === today);
-  const tQ = todayR.reduce((s, r) => s + (parseInt(r.qty) || 0), 0);
-  const tP = new Set(todayR.map(r => r.workerName)).size;
-  const s = E("#topStats"); if (s) s.textContent = "今日 " + tQ + "台 / " + tP + "人";
+  const todayR = S.reports.filter((r) => r.date === today);
+  const todayQty = todayR.reduce((s, r) => s + (parseInt(r.qty) || 0), 0);
+  const todayPeople = new Set(todayR.map((r) => r.workerName)).size;
+
+  if (stat) stat.textContent = todayQty + " 台 / " + todayPeople + " 人";
+
+  if (todayR.length === 0) {
+    el.innerHTML = '<div class="overview-empty">今日暂无报工记录</div>';
+    return;
+  }
+
+  let html = '<div class="overview-stat-row">' +
+    '<div class="overview-stat"><span class="os-label">报工条数</span><span class="os-value">' + todayR.length + '</span></div>' +
+    '<div class="overview-stat"><span class="os-label">总产量</span><span class="os-value">' + todayQty + '台</span></div>' +
+    '<div class="overview-stat"><span class="os-label">在岗</span><span class="os-value">' + todayPeople + '人</span></div>' +
+  '</div>';
+
+  todayR.slice(-6).reverse().forEach((r) => {
+    html += '<div class="overview-report-item">' +
+      '<span class="or-worker">' + esc(r.workerName) + '</span>' +
+      '<span class="or-detail">' + esc(r.operationLabel || r.operation) + '</span>' +
+      '<span class="or-qty">' + r.qty + '台</span>' +
+    '</div>';
+  });
+
+  el.innerHTML = html;
 }
 
+// ====== 提交按钮状态 ======
 function updateSubmit() {
-  const btn = E("#submitBtn");
+  const btn = $("#submitBtn");
   if (!btn) return;
   const can = S.selWorkerIdx >= 0 && S.selOrder && S.selOperation && S.qty > 0 && !S.submitting;
   btn.disabled = !can;
 }
 
-// ====== 事件 ======
+// ====== 事件绑定 ======
 function setupEvents() {
-  // 工人点击
-  E("#workerChips")?.addEventListener("click", (e) => {
+  $("#workerChips")?.addEventListener("click", (e) => {
     const chip = e.target.closest(".chip");
-    if (!chip || !chip.dataset.wi) return;
+    if (!chip || chip.dataset.wi === undefined) return;
     const idx = parseInt(chip.dataset.wi);
     S.selWorkerIdx = idx;
     S.selWorker = S.workers[idx];
@@ -155,52 +277,43 @@ function setupEvents() {
     updateSubmit();
   });
 
-  // 工序点击
-  E("#operationChips")?.addEventListener("click", (e) => {
+  $("#operationChips")?.addEventListener("click", (e) => {
     const chip = e.target.closest(".op-chip");
     if (!chip || !chip.dataset.op) return;
     S.selOperation = chip.dataset.op;
-    A(".op-chip").forEach(c => c.classList.remove("active"));
+    $$(".op-chip").forEach((c) => c.classList.remove("active"));
     chip.classList.add("active");
     updateSubmit();
   });
 
-  // 工单点击
-  E("#orderCards")?.addEventListener("click", (e) => {
+  $("#orderCards")?.addEventListener("click", (e) => {
     const card = e.target.closest(".order-card");
     if (!card || !card.dataset.oid) return;
-    S.selOrder = S.orders.find(o => o.id === card.dataset.oid);
-    A(".order-card").forEach(c => c.classList.remove("active"));
+    S.selOrder = S.orders.find((o) => o.id === card.dataset.oid);
+    $$(".order-card").forEach((c) => c.classList.remove("active"));
     card.classList.add("active");
     updateSubmit();
   });
 
-  // 数量加减
-  E("#qtyPlus")?.addEventListener("click", () => changeQty(1));
-  E("#qtyMinus")?.addEventListener("click", () => changeQty(-1));
+  $("#qtyPlus")?.addEventListener("click", () => changeQty(1));
+  $("#qtyMinus")?.addEventListener("click", () => changeQty(-1));
 
-  // 快捷数量
-  E("#qtyPanel")?.addEventListener("click", (e) => {
-    const btn = e.target.closest(".quick-btn");
-    if (!btn) return;
-    const v = parseInt(btn.textContent) || 0;
+  $$(".quick-btn").forEach((b) => b.addEventListener("click", () => {
+    const v = parseInt(b.textContent) || 0;
     S.qty += v;
     if (S.qty < 0) S.qty = 0;
-    E("#qtyDisplay").textContent = S.qty;
+    $("#qtyDisplay").textContent = S.qty;
     updateSubmit();
-  });
+  }));
 
-  // 提交
-  E("#submitBtn")?.addEventListener("click", submitReport);
+  $("#submitBtn")?.addEventListener("click", submitReport);
 
-  // 继续报工
-  E("#successOk")?.addEventListener("click", () => {
-    E("#successOverlay").classList.remove("show");
+  $("#successOk")?.addEventListener("click", () => {
+    $("#successOverlay").classList.remove("show");
     resetForm();
   });
 
-  // 弹窗背景点击关闭
-  E("#successOverlay")?.addEventListener("click", (e) => {
+  $("#successOverlay")?.addEventListener("click", (e) => {
     if (e.target === e.currentTarget) {
       e.currentTarget.classList.remove("show");
       resetForm();
@@ -208,12 +321,14 @@ function setupEvents() {
   });
 }
 
+// ====== 数量变更 ======
 function changeQty(delta) {
   S.qty = Math.max(0, S.qty + delta);
-  E("#qtyDisplay").textContent = S.qty;
+  $("#qtyDisplay").textContent = S.qty;
   updateSubmit();
 }
 
+// ====== 提交 ======
 async function submitReport() {
   if (S.submitting) return;
   if (S.selWorkerIdx < 0) { toast("请先选择工人", "error"); return; }
@@ -225,7 +340,7 @@ async function submitReport() {
   updateSubmit();
 
   const worker = S.workers[S.selWorkerIdx];
-  const remark = (E("#remarkInput")?.value || "").trim();
+  const remark = ($("#remarkInput").value || "").trim();
   const date = new Date().toISOString().split("T")[0];
   const time = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
 
@@ -241,53 +356,67 @@ async function submitReport() {
   };
 
   try {
-    if (apiOk) {
+    if (apiOnline) {
       await apiPost("/api/reports", report);
       S.reports = await apiGet("/api/reports");
     } else {
       report.id = Date.now().toString(36);
       report.timestamp = Date.now();
       S.reports.push(report);
-      // 持久化到 localStorage，避免刷新丢失
-      try { localStorage.setItem("wr_reports", JSON.stringify(S.reports)); } catch {}
+      try { localStorage.setItem("wr_reports", JSON.stringify(S.reports)); } catch (_) {}
     }
     showSuccess(worker.name, S.qty);
-    updateStats();
+    renderKpis();
+    renderTeamStatus();
+    renderReportOverview();
   } catch (err) {
     toast("提交失败: " + (err.message || "未知错误"), "error");
   } finally {
     S.submitting = false;
+    updateSubmit();
   }
 }
 
+// ====== 弹窗 ======
 function showSuccess(name, qty) {
-  E("#successMsg").textContent = "报工成功！";
-  E("#successSub").textContent = name + " 完成 " + qty + " 台";
-  E("#successOverlay").classList.add("show");
+  $("#successMsg").textContent = "报工成功！";
+  $("#successSub").textContent = name + " 完成 " + qty + " 台";
+  $("#successOverlay").classList.add("show");
 }
 
 function resetForm() {
   S.selWorkerIdx = -1; S.selWorker = null;
   S.selOrder = null; S.selOperation = ""; S.qty = 0;
-  E("#qtyDisplay").textContent = "0";
-  E("#remarkInput").value = "";
-  A(".chip").forEach(c => c.classList.remove("active"));
-  A(".op-chip").forEach(c => c.classList.remove("active"));
-  A(".order-card").forEach(c => c.classList.remove("active"));
+  $("#qtyDisplay").textContent = "0";
+  $("#remarkInput").value = "";
+  $$(".chip").forEach((c) => c.classList.remove("active"));
+  $$(".op-chip").forEach((c) => c.classList.remove("active"));
+  $$(".order-card").forEach((c) => c.classList.remove("active"));
   updateSubmit();
   renderWorkers();
+  renderOrders();
 }
 
 function toast(msg, type) {
-  const t = E("#toast"); if (!t) return;
-  t.textContent = msg; t.className = "touch-toast " + type + " show";
+  const t = $("#toast");
+  if (!t) return;
+  t.textContent = msg;
+  t.className = "toast " + (type || "") + " show";
   clearTimeout(t._tid);
-  t._tid = setTimeout(() => { t.className = "touch-toast"; }, 2500);
-}
-
-function esc(v) {
-  return String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  t._tid = setTimeout(() => { t.className = "toast"; }, 2500);
 }
 
 // ====== 启动 ======
+async function init() {
+  try { await apiGet("/api/health"); apiOnline = true; }
+  catch { apiOnline = false; }
+  updateApiBadge();
+
+  setupClock();
+  setupEvents();
+  await loadAll();
+
+  setInterval(() => { loadAll().catch(() => {}); }, 180000);
+}
+
 document.addEventListener("DOMContentLoaded", init);
