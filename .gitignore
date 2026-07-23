@@ -1,0 +1,6 @@
+.env
+dashboard.env
+*.pyc
+__pycache__/
+worker_reports.json
+data.db

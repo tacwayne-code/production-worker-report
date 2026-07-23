@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#0c1117" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>生产人员报工</title>
+  <link rel="stylesheet" href="./worker-report.css" />
+</head>
+<body>
+
+<div class="touch-shell" id="app">
+  <!-- 顶部状态栏 -->
+  <header class="touch-topbar">
+    <div class="top-left brand-block">
+      <div class="brand-mark"><span></span><span></span><span></span></div>
+      <div>
+        <p class="eyebrow">PRODUCTION WORKER REPORTING</p>
+        <h1>生产人员报工</h1>
+      </div>
+    </div>
+    <div class="top-center">
+      <span class="top-badge" id="apiStatus">● 在线</span>
+    </div>
+    <div class="top-right">
+      <div class="top-stat" id="topStats">今日 0台 / 0人</div>
+      <div class="top-clock" id="clock">14:30</div>
+    </div>
+  </header>
+
+  <!-- 主体区域 -->
+  <div class="touch-main">
+    <!-- 左侧：工人 & 工序 -->
+    <aside class="touch-sidebar">
+      <section class="touch-section">
+        <div class="section-label">选择工人</div>
+        <div class="worker-chips" id="workerChips"></div>
+      </section>
+
+      <section class="touch-section">
+        <div class="section-label">选择工序</div>
+        <div class="operation-chips" id="operationChips">
+          <button class="chip op-chip" data-op="assembly">总装</button>
+          <button class="chip op-chip" data-op="testing">测试</button>
+          <button class="chip op-chip" data-op="qc">质检</button>
+          <button class="chip op-chip" data-op="packing">包装</button>
+          <button class="chip op-chip" data-op="debug">调试</button>
+        </div>
+      </section>
+
+      <section class="touch-section">
+        <div class="section-label">备注（可选）</div>
+        <textarea class="touch-remark" id="remarkInput" placeholder="异常情况..." rows="2"></textarea>
+      </section>
+    </aside>
+
+    <!-- 中央：工单 + 数量 + 提交 -->
+    <div class="touch-center">
+      <!-- 工单卡片区 -->
+      <section class="touch-section flex-1">
+        <div class="section-label">选择工单 <span class="order-count" id="orderCount">0个</span></div>
+        <div class="order-cards" id="orderCards"></div>
+      </section>
+
+      <!-- 底部操作区 -->
+      <div class="touch-action-bar">
+        <!-- 数量控制 -->
+        <div class="qty-panel" id="qtyPanel">
+          <div class="qty-label">完成数量</div>
+          <div class="qty-controls">
+            <button class="qty-btn big-minus" id="qtyMinus">−</button>
+            <div class="qty-display" id="qtyDisplay">0</div>
+            <button class="qty-btn big-plus" id="qtyPlus">+</button>
+          </div>
+          <div class="qty-quick">
+            <button class="quick-btn">+5</button>
+            <button class="quick-btn">+10</button>
+            <button class="quick-btn">+20</button>
+            <button class="quick-btn">+50</button>
+          </div>
+        </div>
+
+        <!-- 提交按钮 -->
+        <button class="submit-btn" id="submitBtn" disabled>
+          <span class="submit-icon">✅</span>
+          <span class="submit-text">提交报工</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 成功弹窗 -->
+  <div class="success-overlay" id="successOverlay">
+    <div class="success-box">
+      <div class="success-icon">✅</div>
+      <div class="success-msg" id="successMsg">报工成功！</div>
+      <div class="success-sub" id="successSub"></div>
+      <button class="success-ok" id="successOk">继续报工</button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="touch-toast" id="toast"></div>
+</div>
+
+<script src="./worker-report.js"></script>
+</body>
+</html>

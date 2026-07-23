@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0c1117" />
+    <title>订单交付流程看板</title>
+    <link rel="stylesheet" href="./styles.css?v=20260716-order-header-removed-v3" />
+  </head>
+  <body>
+    <main class="dashboard-shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div>
+            <p class="eyebrow">ODOO ORDER DELIVERY FLOW</p>
+            <h1>订单交付流程看板</h1>
+          </div>
+        </div>
+
+        <div class="legend topbar-legend" aria-label="状态图例">
+          <span><i class="legend-dot done"></i>完成</span>
+          <span><i class="legend-dot running"></i>进行</span>
+          <span><i class="legend-dot warning"></i>待处理</span>
+          <span><i class="legend-dot danger"></i>异常</span>
+        </div>
+
+        <div class="header-actions">
+          <div class="shift-chip">
+            <span class="status-dot"></span>
+            <span>Odoo · 实时订单</span>
+          </div>
+          <div class="refresh-chip">
+            <span>数据更新</span>
+            <strong id="refreshTime">--:--</strong>
+          </div>
+          <div class="clock-block">
+            <strong id="clock">--:--:--</strong>
+            <span id="dateLabel">----年--月--日</span>
+          </div>
+          <a class="report-link" href="./worker-report.html">生产报工</a>
+          <button class="fullscreen-button" id="fullscreenButton" type="button">全屏</button>
+        </div>
+      </header>
+
+      <section class="main-grid">
+        <article class="panel order-panel">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">LIVE PRODUCTION ORDERS</p>
+              <h2>实时排产 / 订单交付</h2>
+            </div>
+            <div class="panel-tools">
+              <span id="orderCount">0 单</span>
+            </div>
+          </div>
+          <div class="order-list" id="orderList"></div>
+        </article>
+
+        <aside class="side-panel">
+          <section class="kpi-grid" id="kpiGrid" aria-label="核心指标"></section>
+
+          <div class="side-bottom">
+            <article class="panel process-panel">
+              <div class="panel-header compact">
+                <div>
+                  <p class="section-kicker">REPLENISHMENT</p>
+                  <h2>补货缺口</h2>
+                </div>
+                <span class="subtle">剩余库存</span>
+              </div>
+              <div class="process-loads" id="processLoads"></div>
+            </article>
+
+            <article class="panel machine-panel">
+              <div class="panel-header compact">
+                <div>
+                  <p class="section-kicker">UNFULFILLED</p>
+                  <h2>未交付补充</h2>
+                </div>
+                <span class="oee-badge" id="hiddenCount">Odoo</span>
+              </div>
+              <div class="machine-grid" id="machineGrid"></div>
+            </article>
+
+            <article class="panel report-overview-panel">
+              <div class="panel-header compact">
+                <div>
+                  <p class="section-kicker">WORKER REPORT</p>
+                  <h2>今日报工概览</h2>
+                </div>
+                <a class="panel-report-link" href="./worker-report.html">去报工 →</a>
+              </div>
+              <div class="report-overview-content" id="reportOverviewContent">
+                <div class="empty-state">加载中...</div>
+              </div>
+            </article>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <script src="./app.js?v=20260716-order-header-removed-v3"></script>
+  </body>
+</html>
