@@ -80,6 +80,23 @@ html, body {
 .top-right { display: flex; align-items: center; gap: 16px; }
 .top-stat { font-size: 14px; color: var(--muted); font-weight: 600; }
 .top-clock { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 85px; text-align: right; }
+.top-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px;
+  border: 2px solid #3e6276;
+  border-radius: 6px;
+  color: #dff8ff;
+  background: #16313e;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: background .15s, border-color .15s;
+}
+.top-back-btn:hover { border-color: #6d9bb3; background: #1c3d4c; }
+.top-back-btn:active { background: #0e242e; }
 
 /* === 主体 === */
 .touch-main {
